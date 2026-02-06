@@ -1,5 +1,6 @@
 const fileInput = document.getElementById("fileInput");
 const loader = document.getElementById("loader");
+const chartSection = document.getElementById("chartSection");
 const dataSection = document.getElementById("dataSection");
 const dataTable = document.getElementById("dataTable");
 const suggestionSection = document.getElementById("suggestion");
@@ -11,21 +12,24 @@ fileInput.addEventListener("change", () => {
     setTimeout(() => {
         loader.style.display = "none";
         dataSection.style.display = "block";
+        chartSection.style.display = "block";
+        suggestionSection.style.display = "block";
         showDummyTable();
-        showCharts();
+        document.querySelector(".chart-section").classList.add("show");
         showSuggestion();
-    }, 3000);
+    }, 2000);
 });
 
 function showDummyTable() {
     dataTable.innerHTML = `
         <tr>
             <th>Date</th>
+            <th>Product</th>
             <th>Quantity Sold</th>
         </tr>
-        <tr><td>2024-01-01</td><td>40</td></tr>
-        <tr><td>2024-01-02</td><td>55</td></tr>
-        <tr><td>2024-01-03</td><td>48</td></tr>
+        <tr><td>2024-01-01</td><td>Laptop</td><td>40</td></tr>
+        <tr><td>2024-01-02</td><td>Mouse</td><td>55</td></tr>
+        <tr><td>2024-01-03</td><td>Keyboard</td><td>48</td></tr>
     `;
 }
 
@@ -49,28 +53,34 @@ function showCharts() {
             ]
         },
         options: {
+            responsive: true,
+            maintainAspectRatio: false,
             animation: {
-                duration: 2000
+                duration: 4000
             }
         }
     });
 
     // Pie Chart
     new Chart(document.getElementById("pieChart"), {
-        type: "pie",
-        data: {
-            labels: ["High Demand", "Medium Demand", "Low Demand"],
-            datasets: [{
-                data: [45, 35, 20],
-                backgroundColor: ["#22c55e", "#eab308", "#ef4444"]
-            }]
+    type: "pie",
+    data: {
+        labels: ["High Demand", "Medium Demand", "Low Demand"],
+        datasets: [{
+            data: [45, 35, 20],
+            backgroundColor: ["#22c55e", "#eab308", "#ef4444"],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+            animateRotate: true,
+            duration: 4000,
         },
-        options: {
-            animation: {
-                animateScale: true
-            }
-        }
-    });
+    }});
+
 }
 
 function showSuggestion() {
@@ -78,3 +88,21 @@ function showSuggestion() {
     suggestionText.innerHTML =
         "📢 Based on predicted demand, it is recommended to <b>increase stock by 20%</b> for the upcoming period to avoid understock situations.";
 }
+
+let chartsRendered = false;
+
+const observer = new IntersectionObserver(
+    (entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !chartsRendered) {
+                chartsRendered = true;
+                showCharts();   // 🔥 trigger animation here
+            }
+        });
+    },
+    {
+        threshold: 0.5   // 50% visible
+    }
+);
+
+observer.observe(chartSection);
