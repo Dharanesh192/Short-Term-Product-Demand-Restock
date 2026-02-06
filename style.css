@@ -1,0 +1,93 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #020617;
+    color: #fff;
+    margin: 0;
+}
+
+header {
+    text-align: center;
+    padding: 20px;
+    background-image: linear-gradient(90deg, #38bdf8, #0ea5e9);
+}
+
+.upload-section {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.upload-box {
+    width: 60%;
+    height: 200px;
+    border: 4px solid #38bdf8;
+    border-radius: 15px;
+    margin-top: 50px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-box:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.upload-box input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    cursor: pointer;
+}
+
+#uploadText {
+    font-weight: bold;
+    opacity: 0.5;
+    font-size: 18px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.loader {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(56, 189, 248, 0.2);;
+    border-top: 4px solid #38bdf8;
+    border-radius: 50%;
+    animation: spin 1.2s cubic-bezier(.68, -.55, .27, 1.55) infinite;
+    display: none;
+    margin: 15px auto;
+}
+
+@keyframes spin { 
+    100% { transform: rotate(360deg); }
+}
+
+.data-section, .chart-section, .suggestion-section {
+    margin: 40px;
+    display: none;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table, th, td {
+    border: 1px solid #38bdf8;
+}
+
+th, td {
+    padding: 8px;
+    text-align: center;
+}
+
+.charts {
+    display: flex;
+    gap: 30px;
+}
+
+canvas {
+    background: #020617;
+    padding: 15px;
+    border-radius: 10px;
+}
