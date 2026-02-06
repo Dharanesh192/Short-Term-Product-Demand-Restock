@@ -116,3 +116,10 @@ canvas {
     padding: 15px;
     border-radius: 10px;
 }
+
+.suggestion-section p {
+    padding-left: 10px;
+    margin-left: 50px;
+    font-size: 18px;
+    margin-top: 15px;
+}

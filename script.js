@@ -6,103 +6,167 @@ const dataTable = document.getElementById("dataTable");
 const suggestionSection = document.getElementById("suggestion");
 const suggestionText = document.getElementById("suggestionText");
 
-fileInput.addEventListener("change", () => {
+let chartsRendered = false;
+let chartDataCache = null;
+
+// ---------------- FILE UPLOAD ----------------
+fileInput.addEventListener("change", async () => {
+
+    const file = fileInput.files[0];
+    if (!file) return;
+
     loader.style.display = "block";
 
-    setTimeout(() => {
+    const formData = new FormData();
+    formData.append("file", file); // 🔥 MUST match Flask key
+
+    try {
+        const response = await fetch("http://127.0.0.1:5000/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+        chartDataCache = data;
+
+        setTimeout(() => {
         loader.style.display = "none";
         dataSection.style.display = "block";
         chartSection.style.display = "block";
         suggestionSection.style.display = "block";
-        showDummyTable();
+        }, 1000);
+
+        populateTable(data.tableData);
+        populateSuggestions(data.restockSuggestions);
+
         document.querySelector(".chart-section").classList.add("show");
-        showSuggestion();
-    }, 2000);
+
+    } catch (error) {
+        loader.style.display = "none";
+        alert("Error uploading file");
+        console.error(error);
+    }
 });
 
-function showDummyTable() {
-    dataTable.innerHTML = `
+// ---------------- TABLE ----------------
+function populateTable(rows) {
+
+    let html = `
         <tr>
             <th>Date</th>
-            <th>Product</th>
-            <th>Quantity Sold</th>
+            <th>Product ID</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Units Sold</th>
         </tr>
-        <tr><td>2024-01-01</td><td>Laptop</td><td>40</td></tr>
-        <tr><td>2024-01-02</td><td>Mouse</td><td>55</td></tr>
-        <tr><td>2024-01-03</td><td>Keyboard</td><td>48</td></tr>
     `;
+
+    rows.forEach(r => {
+        html += `
+            <tr>
+                <td>${r.Date}</td>
+                <td>${r["Product ID"]}</td>
+                <td>${r.Category}</td>
+                <td>${r.Price}</td>
+                <td>${r["Units Sold"]}</td>
+            </tr>
+        `;
+    });
+
+    dataTable.innerHTML = html;
 }
 
+const monthOrder = {
+    January: 1,
+    February: 2,
+    March: 3,
+    April: 4,
+    May: 5,
+    June: 6,
+    July: 7,
+    August: 8,
+    September: 9,
+    October: 10,
+    November: 11,
+    December: 12
+};
+
+// ---------------- SUGGESTIONS ----------------
+function populateSuggestions(list) {
+    suggestionText.innerHTML = "<ul class='suggestion-list'></ul>";
+    const ul = suggestionText.querySelector(".suggestion-list");
+
+    const sortedList = list.sort((a, b) => {
+        return monthOrder[a.month] - monthOrder[b.month];
+    });
+
+    sortedList.slice(0, 10).forEach(s => {  
+        ul.innerHTML += `<li>${s.message}</li>`;
+    });
+}
+
+
+// ---------------- CHARTS ----------------
 function showCharts() {
-    // Bar Chart
+
+    if (!chartDataCache) return;
+
+    // -------- BAR CHART (Top Products) --------
+    const barLabels = chartDataCache.topProducts.map(p => p["Product ID"]);
+    const barValues = chartDataCache.topProducts.map(p => p["Units Sold"]);
+
     new Chart(document.getElementById("barChart"), {
         type: "bar",
         data: {
-            labels: ["Day 1", "Day 2", "Day 3"],
-            datasets: [
-                {
-                    label: "Actual Sales",
-                    data: [40, 55, 48],
-                    backgroundColor: "#38bdf8"
-                },
-                {
-                    label: "Predicted Sales",
-                    data: [45, 50, 52],
-                    backgroundColor: "#22c55e"
-                }
-            ]
+            labels: barLabels,
+            datasets: [{
+                label: "Total Units Sold",
+                data: barValues,
+                backgroundColor: "#38bdf8"
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 3000 }
+        }
+    });
+
+    // -------- PIE CHART (Demand Share) --------
+    const pieLabels = barLabels;
+    const pieValues = barValues;
+
+    new Chart(document.getElementById("pieChart"), {
+        type: "pie",
+        data: {
+            labels: pieLabels,
+            datasets: [{
+                data: pieValues,
+                backgroundColor: ["#22c55e", "#eab308", "#ef4444", "#38bdf8", "#a855f7"]
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             animation: {
-                duration: 4000
+                animateRotate: true,
+                duration: 3500
             }
         }
     });
-
-    // Pie Chart
-    new Chart(document.getElementById("pieChart"), {
-    type: "pie",
-    data: {
-        labels: ["High Demand", "Medium Demand", "Low Demand"],
-        datasets: [{
-            data: [45, 35, 20],
-            backgroundColor: ["#22c55e", "#eab308", "#ef4444"],
-            borderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-            animateRotate: true,
-            duration: 4000,
-        },
-    }});
-
 }
 
-function showSuggestion() {
-    suggestionSection.style.display = "block";
-    suggestionText.innerHTML =
-        "📢 Based on predicted demand, it is recommended to <b>increase stock by 20%</b> for the upcoming period to avoid understock situations.";
-}
-
-let chartsRendered = false;
-
+// ---------------- SCROLL TRIGGER ----------------
 const observer = new IntersectionObserver(
     (entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting && !chartsRendered) {
                 chartsRendered = true;
-                showCharts();   // 🔥 trigger animation here
+                showCharts();
             }
         });
     },
-    {
-        threshold: 0.5   // 50% visible
-    }
+    { threshold: 0.5 }
 );
 
 observer.observe(chartSection);
