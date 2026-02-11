@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
-import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import LabelEncoder
 
 app = Flask(__name__)
 CORS(app)
@@ -19,7 +19,7 @@ def upload_file():
     # ---------- READ CSV ----------
     df = pd.read_csv(file)
 
-    required_cols = ['Date', 'Product ID', 'Category', 'Price', 'Units Sold']
+    required_cols = ['Date', 'Product Name', 'Location', 'Units Sold', 'No of Products']
     missing = [c for c in required_cols if c not in df.columns]
 
     if missing:
@@ -27,89 +27,64 @@ def upload_file():
 
     # ---------- PREPROCESS ----------
     df = df[required_cols]
-    df['Date'] = pd.to_datetime(df['Date'])
+    df['Date-format'] = pd.to_datetime(df['Date'])
 
-    df['Month'] = df['Date'].dt.month_name()
-    df['Month_Num'] = df['Date'].dt.month
-    df['Year'] = df['Date'].dt.year
+    df['Month'] = df['Date-format'].dt.month_name()
+    df['Month_Num'] = df['Date-format'].dt.month
+    df['Year'] = df['Date-format'].dt.year
 
-    # ---------- SORT ----------
-    df = df.sort_values(by='Date')
+    # Time index for regression
+    df['Time_Index'] = df['Year'] * 12 + df['Month_Num']
+
+    # ---------- ENCODE CATEGORICAL FEATURES ----------
+    le_product = LabelEncoder()
+    le_location = LabelEncoder()
+
+    df['Product_Enc'] = le_product.fit_transform(df['Product Name'])
+    df['Location_Enc'] = le_location.fit_transform(df['Location'])
+
+    # ---------- REGRESSION MODEL ----------
+    X = df[['Time_Index', 'Product_Enc', 'Location_Enc']]
+    y = df['Units Sold']
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # ---------- ANALYSIS: PRODUCT-MONTH-LOCATION DEMAND ----------
+    demand_analysis = (
+        df.groupby(['Product Name', 'Month', 'Month_Num', 'Location'])['Units Sold']
+        .sum()
+        .reset_index()
+        .sort_values(by='Units Sold', ascending=False)
+    )
+
+    # ---------- TOP DEMAND COMBINATIONS ----------
+    top_demand = demand_analysis.head(10)
+
+    # ---------- RESTOCK SUGGESTIONS ----------
+    restock_suggestions = []
+
+    for _, row in top_demand.iterrows():
+        msg = (
+            f"High demand for {row['Product Name']} in {row['Location']} "
+            f"during {row['Month']}. Increase stock before this period."
+        )
+
+        restock_suggestions.append({
+            "product": row['Product Name'],
+            "location": row['Location'],
+            "month": row['Month'],
+            "unitsSold": int(row['Units Sold']),
+            "message": msg
+        })
 
     # ---------- TABLE DATA ----------
     table_data = df.head(10).to_dict(orient="records")
 
-    # ---------- PRODUCT TOTAL SALES ----------
-    product_sales = (
-        df.groupby('Product ID')['Units Sold']
-        .sum()
-        .sort_values(ascending=False)
-        .head(5)
-        .reset_index()
-    )
-
-    # ---------- MONTHLY SALES ----------
-    monthly_sales = (
-        df.groupby(['Product ID', 'Month', 'Month_Num'])['Units Sold']
-        .sum()
-        .reset_index()
-    )
-
-    # ---------- REGRESSION: DEMAND TREND ANALYSIS ----------
-    regression_results = []
-    restock_suggestions = []
-
-    for product in df['Product ID'].unique():
-
-        product_df = df[df['Product ID'] == product]
-
-        if len(product_df) < 10:
-            continue
-
-        # Convert time to numeric index
-        product_df = product_df.copy()
-        product_df['Time_Index'] = (
-            product_df['Date'].dt.year * 12 + product_df['Date'].dt.month
-        )
-
-        X = product_df[['Time_Index']]
-        y = product_df['Units Sold']
-
-        model = LinearRegression()
-        model.fit(X, y)
-
-        trend = model.coef_[0]
-
-        # Best month (historical peak)
-        peak_month = (
-            product_df.groupby('Month')['Units Sold']
-            .sum()
-            .idxmax()
-        )
-
-        regression_results.append({
-            "product": product,
-            "trend": round(trend, 2)
-        })
-
-        # ---------- RESTOCK LOGIC ----------
-        if trend > 0:
-            msg = f"Increase stock of {product} before {peak_month} due to rising demand."
-        else:
-            msg = f"Maintain stock of {product} demand trend is stable {peak_month} month."
-
-        restock_suggestions.append({
-            "product": product,
-            "month": peak_month,
-            "message": msg
-        })
-
     # ---------- RESPONSE ----------
     response = {
         "tableData": table_data,
-        "topProducts": product_sales.to_dict(orient="records"),
-        "monthlySales": monthly_sales.to_dict(orient="records"),
-        "regressionTrends": regression_results,
+        "topDemandByMonthLocation": top_demand.to_dict(orient="records"),
         "restockSuggestions": restock_suggestions
     }
 

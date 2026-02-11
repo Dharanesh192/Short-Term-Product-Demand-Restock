@@ -54,10 +54,10 @@ function populateTable(rows) {
     let html = `
         <tr>
             <th>Date</th>
-            <th>Product ID</th>
-            <th>Category</th>
-            <th>Price</th>
+            <th>Product Name</th>
+            <th>No of Products</th>
             <th>Units Sold</th>
+            <th>Location</th>
         </tr>
     `;
 
@@ -65,10 +65,10 @@ function populateTable(rows) {
         html += `
             <tr>
                 <td>${r.Date}</td>
-                <td>${r["Product ID"]}</td>
-                <td>${r.Category}</td>
-                <td>${r.Price}</td>
+                <td>${r["Product Name"]}</td>
+                <td>${r["No of Products"]}</td>
                 <td>${r["Units Sold"]}</td>
+                <td>${r.Location}</td>
             </tr>
         `;
     });
@@ -111,16 +111,21 @@ function showCharts() {
 
     if (!chartDataCache) return;
 
-    // -------- BAR CHART (Top Products) --------
-    const barLabels = chartDataCache.topProducts.map(p => p["Product ID"]);
-    const barValues = chartDataCache.topProducts.map(p => p["Units Sold"]);
+    const data = chartDataCache.topDemandByMonthLocation;
+
+    // ---------- BAR CHART (Product + Month + Location) ----------
+    const barLabels = data.map(
+        d => `${d["Product Name"]} - ${d.Month})`
+    );
+
+    const barValues = data.map(d => d["Units Sold"]);
 
     new Chart(document.getElementById("barChart"), {
         type: "bar",
         data: {
             labels: barLabels,
             datasets: [{
-                label: "Total Units Sold",
+                label: "Units Sold",
                 data: barValues,
                 backgroundColor: "#38bdf8"
             }]
@@ -128,32 +133,138 @@ function showCharts() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 3000 }
+            animation: { duration: 4000 },
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: "Top Product Demand by Month & Location",
+                    color: "#ffffff",
+                    font: {
+                        size: 18,
+                        weight: "bold"
+                    },
+                    padding: {
+                        top: 10,
+                        bottom: 20
+                    }
+                }
+            }
         }
     });
 
-    // -------- PIE CHART (Demand Share) --------
-    const pieLabels = barLabels;
-    const pieValues = barValues;
+    // ---------- PIE CHART (Product + Location Demand Share) ----------
 
-    new Chart(document.getElementById("pieChart"), {
-        type: "pie",
+const comboTotals = {};
+
+// combine product + location
+chartDataCache.topDemandByMonthLocation.forEach(d => {
+    const key = `${d["Product Name"]} - ${d.Location}`;
+    comboTotals[key] = (comboTotals[key] || 0) + d["Units Sold"];
+});
+
+const pieLabels = Object.keys(comboTotals);
+const pieValues = Object.values(comboTotals);
+
+new Chart(document.getElementById("pieChart"), {
+    type: "pie",
+    data: {
+        labels: pieLabels,
+        datasets: [{
+            data: pieValues,
+            backgroundColor: [
+                "#22c55e", "#eab308", "#ef4444",
+                "#38bdf8", "#a855f7", "#14b8a6",
+                "#f97316", "#06b6d4"
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 3000 , easing: "easeInOutQuad"},
+        plugins: {
+            title: {
+                display: true,
+                text: "Product-wise Demand Share by Location",
+                color: "#ffffff",
+                font: {
+                    size: 18,
+                    weight: "bold"
+                }
+            }
+        }
+    }
+});
+
+// ---------- LINE CHART (Location vs Units Sold | Hover = Product Name) ----------
+
+    const labels = data.map(d => d.Location);              // X-axis
+    const values = data.map(d => d["Units Sold"]);         // Y-axis
+    const productNames = data.map(d => d["Product Name"]); // Tooltip
+
+    new Chart(document.getElementById("lineChart"), {
+        type: "line",
         data: {
-            labels: pieLabels,
+            labels: labels,
             datasets: [{
-                data: pieValues,
-                backgroundColor: ["#22c55e", "#eab308", "#ef4444", "#38bdf8", "#a855f7"]
+                label: "Units Sold",
+                data: values,
+                borderColor: "#22c55e",
+                backgroundColor: "#22c55e",
+                tension: 0.4,
+                fill: false,
+                pointRadius: 5,
+                pointHoverRadius: 8
             }]
         },
         options: {
             responsive: true,
+            animation: { duration: 2000 },
             maintainAspectRatio: false,
-            animation: {
-                animateRotate: true,
-                duration: 3500
+            plugins: {
+                title: {
+                    display: true,
+                    text: "Location-wise Demand Trend (Hover for Product)",
+                    color: "#ffffff",
+                    font: {
+                        size: 18,
+                        weight: "bold"
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            const idx = context.dataIndex;
+                            return [
+                                `Product: ${productNames[idx]}`,
+                                `Units Sold: ${context.parsed.y}`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: "Location",
+                        color: "#ffffff"
+                    },
+                    ticks: { color: "#ffffff" }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: "Units Sold",
+                        color: "#ffffff"
+                    },
+                    ticks: { color: "#ffffff" }
+                }
             }
         }
     });
+
 }
 
 // ---------------- SCROLL TRIGGER ----------------

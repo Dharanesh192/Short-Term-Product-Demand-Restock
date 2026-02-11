@@ -80,9 +80,16 @@ header {
     margin-top: 30px;
 }
 
+.charts-line {
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+    margin-top: 30px;
+}
+
 .chart-box {
     width: 450px;
-    height: 350px;
+    height: 400px;
 }
 
 canvas {
@@ -102,7 +109,7 @@ table, th, td {
 }
 
 th, td {
-    padding: 10px;
+    padding: 5px;
     text-align: center;
 }
 
